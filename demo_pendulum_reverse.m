@@ -1,4 +1,4 @@
-function demo_pendulum2
+function demo_pendulum_reverse
 % A demo of iLQG/DDP with Single pendulum dynamics
 clc;
 close all;
@@ -15,11 +15,22 @@ full_DDP = false;
 % set up the optimization problem
 DYNCST  = @(x,u,i) pendulum_dyn_cst(x,u,full_DDP);
 T       = 500;              % horizon
-x0      = [pi;0;pi;0];            % initial state
+x_in    = [-1.5;0;-1;0];    %[x2;y2;x1;y1] initial state
 u0      = 10*randn(2,T);    % initial controls
 Op.lims  = [-1000000 1000000];  % external force force (N)
 Op.plot = -1;               % plot the derivatives as well
 
+L_1 = 1;      % l = length of pendulum
+L_2 = 0.5;
+
+% x0 = [asin(x_in(3)/L_1);
+%     0;
+%     -asin((x_in(3) - x_in(1))/ L_2);
+%     0];
+x0 = [-log((- x_in(3)^2 - x_in(4)^2)^(1/2)/(x_in(3) - x_in(4)*1i))*1i;
+    0;
+    -log(-(- x_in(3)^2 + 2*x_in(3)*x_in(1) - x_in(1)^2 - x_in(4)^2 + 2*x_in(4)*x_in(2) - x_in(2)^2)^(1/2)/(x_in(3) - x_in(1) - x_in(4)*1i + x_in(2)*1i))*1i;
+    0];
 % prepare the visualization window and graphics callback
 figure(9);
 set(gcf,'name','pendulum','Menu','none','NumberT','off')
@@ -38,6 +49,7 @@ save output_2_pendulum.mat x u
 
 pendulum_plot(x, u);
 
+
 function y = pendulum_dynamics(x,u)
 
 % === states and controls:
@@ -45,11 +57,11 @@ function y = pendulum_dynamics(x,u)
 % u = [F]'     = [force applied]
 
 % constants
-L_1  = 0.5;      % l = length of pendulum
-L_2 = 0.3;
 h  = 0.01;     % h = timestep (seconds)
 m_1 = 1;         % m = mass in Kg
 m_2 = 2;         % m2 = mass
+L_1 = 1;      % l = length of pendulum
+L_2 = 0.5;
 %b = 1;         % damping coefficient
 
 g = 9.81;      % gravitational acceleration in m/s^2
@@ -85,10 +97,16 @@ function c = pendulum_cost(x, u)
 final = isnan(u(1,:));
 u(:,final)  = 0;
 
-Q = diag([100 1 100 1]);           %cost Q matrix
+Q = diag([100 5 100 4]);           %cost Q matrix
 R = diag([1e-2 1e-2]);                 %cost R matrix
 
-x_final = [0;0;0;0];            %final state
+x_final = [0;-1.5;0;-1];            %final state
+
+x_final = [-log((- x_final(3)^2 - x_final(4)^2)^(1/2)/(x_final(3) - x_final(4)*1i))*1i;
+    0;
+    -log(-(- x_final(3)^2 + 2*x_final(3)*x_final(1) - x_final(1)^2 - x_final(4)^2 + 2*x_final(4)*x_final(2) - x_final(2)^2)^(1/2)/(x_final(3) - x_final(1) - x_final(4)*1i + x_final(2)*1i))*1i;
+    0];
+%x_final = [asin(x_final(3)/L_1); 0; -asin((x_final(3) - x_final(1))/ L_2);0];
 
 n = size(u);
 c = zeros([1,n(2)]);
@@ -184,8 +202,8 @@ J       = permute(J, [1 3 2]);
 function pendulum_plot(x, u)
 % pedulum plot function animate the pendulum system
 
-L_1 = 0.5;
-L_2 = 0.3;
+L_1 = 1;
+L_2 = 0.5;
 
 t=0:1:(length(x)-1);
 X1 = L_1*sin(x(1,:));
@@ -223,10 +241,11 @@ legend('theta2','theta2 dot','u2')
 
 figure(10)
 for ind = 1:length(t)
-  plot([0,X1(ind)],[0,Y1(ind)],[X1(ind), X2(ind)],[Y1(ind), Y2(ind)], X1(ind),Y1(ind),'r.', X2(ind),Y2(ind),'b.', 'MarkerSize',50) 
+  plot([0,X1(ind)],[0,Y1(ind)],[X1(ind), X2(ind)],[Y1(ind), Y2(ind)], X1(ind),Y1(ind),'b.', X2(ind),Y2(ind),'r.', 'MarkerSize',50) 
   axis([-L_1-L_2-0.1 L_1+L_2+0.3 -L_1-L_2-0.1 L_1+L_2+0.1])
   text(-0.1, L_1+L_2+0.2, "Timer : " + num2str(t(ind)*0.01))
   grid on
+  clc
   drawnow
   pause(0.1)
 end
